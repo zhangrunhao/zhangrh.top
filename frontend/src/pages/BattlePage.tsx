@@ -1,3 +1,5 @@
+import type { RoomState } from '../types'
+
 const actionCards = [
   {
     id: 'attack',
@@ -19,24 +21,38 @@ const actionCards = [
 type BattlePageProps = {
   playerId: string
   opponentId: string
+  roomState: RoomState | null
   onBack: () => void
 }
 
-export function BattlePage({ playerId, opponentId, onBack }: BattlePageProps) {
+export function BattlePage({ playerId, opponentId, roomState, onBack }: BattlePageProps) {
+  const round = roomState?.round ?? 1
+  const players = roomState?.players ?? []
+  const self = players.find((player) => player.playerId === playerId)
+  const opponent = players.find((player) => player.playerId !== playerId)
+
+  const displayPlayerName = self?.name || 'Unknown'
   const displayPlayerId = playerId || 'pending'
-  const displayOpponentId = opponentId || 'pending'
+  const displayOpponentName = opponent?.name || 'Unknown'
+  const displayOpponentId = opponent?.playerId || opponentId || 'pending'
+  const playerHp = self?.hp ?? 10
+  const opponentHp = opponent?.hp ?? 10
+
+  const clampHp = (value: number) => Math.max(0, Math.min(10, value))
+  const playerHpPercent = `${(clampHp(playerHp) / 10) * 100}%`
+  const opponentHpPercent = `${(clampHp(opponentHp) / 10) * 100}%`
 
   return (
     <section className="battle">
       <header className="battle__header">
         <div>
-          <p className="battle__eyebrow">Round 3 / 10</p>
+          <p className="battle__eyebrow">Round {round} / 10</p>
           <h1 className="battle__title">Duel in Progress</h1>
           <p className="battle__subtitle">Choose a card and wait for your opponent.</p>
         </div>
         <div className="battle__round">
           <span className="battle__round-label">Current</span>
-          <span className="battle__round-value">3</span>
+          <span className="battle__round-value">{round}</span>
         </div>
       </header>
       <div className="battle__nav">
@@ -48,18 +64,20 @@ export function BattlePage({ playerId, opponentId, onBack }: BattlePageProps) {
       <div className="battle__players">
         <div className="battle__player-card">
           <p className="battle__player-role">You</p>
-          <p className="battle__player-name">{displayPlayerId}</p>
-          <p className="battle__hp">HP 10</p>
+          <p className="battle__player-name">{displayPlayerName}</p>
+          <p className="battle__player-id">ID {displayPlayerId}</p>
+          <p className="battle__hp">HP {playerHp}</p>
           <p className="battle__hp-bar">
-            <span style={{ width: '100%' }} />
+            <span style={{ width: playerHpPercent }} />
           </p>
         </div>
         <div className="battle__player-card battle__player-card--opponent">
           <p className="battle__player-role">Opponent</p>
-          <p className="battle__player-name">{displayOpponentId}</p>
-          <p className="battle__hp">HP 10</p>
+          <p className="battle__player-name">{displayOpponentName}</p>
+          <p className="battle__player-id">ID {displayOpponentId}</p>
+          <p className="battle__hp">HP {opponentHp}</p>
           <p className="battle__hp-bar">
-            <span style={{ width: '100%' }} />
+            <span style={{ width: opponentHpPercent }} />
           </p>
         </div>
       </div>
@@ -78,21 +96,12 @@ export function BattlePage({ playerId, opponentId, onBack }: BattlePageProps) {
 
       <section className="battle__status">
         <div className="battle__status-panel">
-          <h3 className="battle__status-title">Waiting for opponent</h3>
-          <p className="battle__status-text">Your card is locked in. Hang tight.</p>
+          <h3 className="battle__status-title">Waiting for actions</h3>
+          <p className="battle__status-text">Submit a card to start the round.</p>
         </div>
         <div className="battle__status-panel battle__status-panel--result">
-          <h3 className="battle__status-title">Resolution</h3>
-          <div className="battle__status-list">
-            <div className="battle__status-row">
-              <span>You</span>
-              <span>Attack • -2</span>
-            </div>
-            <div className="battle__status-row">
-              <span>Opponent</span>
-              <span>Rest • -2</span>
-            </div>
-          </div>
+          <h3 className="battle__status-title">Latest Result</h3>
+          <p className="battle__status-text">Results will appear after both players act.</p>
           <button className="battle__next-round" disabled>
             Next Round
           </button>

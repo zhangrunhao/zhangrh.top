@@ -4,24 +4,13 @@ import { BattlePage } from './pages/BattlePage'
 import { CreateRoomPage } from './pages/CreateRoomPage'
 import { EntryPage } from './pages/EntryPage'
 import { MatchPage } from './pages/MatchPage'
+import type { RoomState } from './types'
 
 type Route =
   | { name: 'entry' }
   | { name: 'create' }
   | { name: 'match'; roomId: string }
   | { name: 'battle' }
-
-type RoomState = {
-  roomId: string
-  status: 'waiting' | 'playing' | 'finished'
-  round: number
-  players: Array<{
-    playerId: string
-    name: string
-    hp: number
-    submitted: boolean
-  }>
-}
 
 const resolveRoute = (): Route => {
   const path = window.location.pathname
@@ -76,6 +65,14 @@ function App() {
       setPlayerInfo((prev) => ({ ...prev, roomId: route.roomId }))
     }
   }, [route, playerInfo.roomId])
+
+  useEffect(() => {
+    if (playerInfo.playerName) {
+      document.title = `${playerInfo.playerName} - Card Duel`
+    } else {
+      document.title = 'Card Duel'
+    }
+  }, [playerInfo.playerName])
 
   const resetSession = () => {
     setPlayerInfo({ roomId: '', playerName: '', playerId: '', opponentId: '' })
@@ -260,6 +257,7 @@ function App() {
         <BattlePage
           playerId={playerInfo.playerId}
           opponentId={playerInfo.opponentId}
+          roomState={roomState}
           onBack={navigateToEntry}
         />
       ) : null}

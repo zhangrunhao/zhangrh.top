@@ -220,6 +220,12 @@
   font-weight: 600;
 }
 
+.battle__player-id {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .battle__hp {
   margin: 0 0 10px;
   font-size: 1.3rem;
