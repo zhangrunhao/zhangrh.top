@@ -1,6 +1,12 @@
 import { useState } from 'react'
 
-export function EntryPage() {
+type LobbyAction = 'create' | 'join'
+
+type EntryPageProps = {
+  onSubmit: (payload: { roomId: string; playerName: string; action: LobbyAction }) => void
+}
+
+export function EntryPage({ onSubmit }: EntryPageProps) {
   const [roomId, setRoomId] = useState('')
   const [playerName, setPlayerName] = useState('')
   const [error, setError] = useState('')
@@ -23,16 +29,16 @@ export function EntryPage() {
     return true
   }
 
-  const handleCreate = () => {
+  const handleSubmit = (action: LobbyAction) => {
     if (!validate()) {
       return
     }
-  }
 
-  const handleJoin = () => {
-    if (!validate()) {
-      return
-    }
+    onSubmit({
+      roomId: roomId.trim(),
+      playerName: playerName.trim(),
+      action,
+    })
   }
 
   return (
@@ -69,10 +75,10 @@ export function EntryPage() {
         {error ? <p className="entry__error">{error}</p> : null}
 
         <div className="entry__actions">
-          <button className="entry__button entry__button--ghost" onClick={handleCreate}>
+          <button className="entry__button entry__button--ghost" onClick={() => handleSubmit('create')}>
             Create Room
           </button>
-          <button className="entry__button" onClick={handleJoin}>
+          <button className="entry__button" onClick={() => handleSubmit('join')}>
             Join Room
           </button>
         </div>
