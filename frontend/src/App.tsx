@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { BattlePage } from './pages/BattlePage'
 import { CreateRoomPage } from './pages/CreateRoomPage'
@@ -10,6 +10,18 @@ type Route =
   | { name: 'create' }
   | { name: 'match'; roomId: string }
   | { name: 'battle' }
+
+type RoomState = {
+  roomId: string
+  status: 'waiting' | 'playing' | 'finished'
+  round: number
+  players: Array<{
+    playerId: string
+    name: string
+    hp: number
+    submitted: boolean
+  }>
+}
 
 const resolveRoute = (): Route => {
   const path = window.location.pathname
@@ -37,13 +49,22 @@ function App() {
     playerId: '',
     opponentId: '',
   })
-
-  const generateRoomId = () => String(Math.floor(1000 + Math.random() * 9000))
-  const generateUserId = () => `user_${Math.random().toString(36).slice(2, 8)}`
+  const [roomState, setRoomState] = useState<RoomState | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const pendingMessageRef = useRef<string | null>(null)
 
   useEffect(() => {
     const handlePopState = () => {
-      setRoute(resolveRoute())
+      const nextRoute = resolveRoute()
+      setRoute(nextRoute)
+      if (nextRoute.name === 'entry') {
+        setPlayerInfo({ roomId: '', playerName: '', playerId: '', opponentId: '' })
+        setRoomState(null)
+        if (wsRef.current) {
+          wsRef.current.close()
+          wsRef.current = null
+        }
+      }
     }
 
     window.addEventListener('popstate', handlePopState)
@@ -56,40 +77,142 @@ function App() {
     }
   }, [route, playerInfo.roomId])
 
-  const navigateToEntry = () => {
-    if (route.name === 'entry') {
-      return
+  const resetSession = () => {
+    setPlayerInfo({ roomId: '', playerName: '', playerId: '', opponentId: '' })
+    setRoomState(null)
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
     }
+    pendingMessageRef.current = null
+  }
 
-    window.history.pushState({}, '', '/')
+  const navigateToEntry = () => {
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/')
+    }
     setRoute({ name: 'entry' })
+    resetSession()
   }
 
   const navigateToCreate = () => {
-    if (route.name === 'create') {
-      return
+    if (window.location.pathname !== '/create') {
+      window.history.pushState({}, '', '/create')
     }
-
-    window.history.pushState({}, '', '/create')
     setRoute({ name: 'create' })
   }
 
   const navigateToMatch = (roomId: string) => {
-    if (route.name === 'match' && route.roomId === roomId) {
-      return
+    const path = `/match/${roomId}`
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path)
     }
-
-    window.history.pushState({}, '', `/match/${roomId}`)
     setRoute({ name: 'match', roomId })
   }
 
   const navigateToBattle = () => {
-    if (route.name === 'battle') {
+    if (window.location.pathname !== '/battle') {
+      window.history.pushState({}, '', '/battle')
+    }
+    setRoute({ name: 'battle' })
+  }
+
+  const handleSocketMessage = (rawMessage: string) => {
+    let message
+    try {
+      message = JSON.parse(rawMessage)
+    } catch (error) {
       return
     }
 
-    window.history.pushState({}, '', '/battle')
-    setRoute({ name: 'battle' })
+    if (!message?.type) {
+      return
+    }
+
+    if (message.type === 'room_created') {
+      const roomId = message.payload?.roomId || ''
+      const playerId = message.payload?.playerId || ''
+      setPlayerInfo((prev) => ({ ...prev, roomId, playerId }))
+      if (roomId) {
+        navigateToMatch(roomId)
+      }
+      return
+    }
+
+    if (message.type === 'room_joined') {
+      const roomId = message.payload?.roomId || ''
+      const playerId = message.payload?.playerId || ''
+      setPlayerInfo((prev) => ({ ...prev, roomId, playerId }))
+      if (roomId) {
+        navigateToMatch(roomId)
+      }
+      return
+    }
+
+    if (message.type === 'room_state') {
+      const payload = message.payload as RoomState
+      if (!payload?.roomId) {
+        return
+      }
+      setRoomState(payload)
+      setPlayerInfo((prev) => {
+        if (!prev.playerId) {
+          return prev
+        }
+        const opponent = payload.players.find((entry) => entry.playerId !== prev.playerId)
+        if (!opponent || opponent.playerId === prev.opponentId) {
+          return prev
+        }
+        return { ...prev, opponentId: opponent.playerId }
+      })
+
+      if (payload.status === 'playing' && payload.players.length === 2) {
+        navigateToBattle()
+      }
+      return
+    }
+  }
+
+  const connectSocket = () => {
+    const existing = wsRef.current
+    if (existing && existing.readyState !== WebSocket.CLOSED) {
+      return existing
+    }
+
+    const wsUrl = import.meta.env.DEV
+      ? `ws://${window.location.host}/ws`
+      : window.location.origin.replace(/^http/, 'ws')
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+
+    ws.addEventListener('open', () => {
+      if (pendingMessageRef.current) {
+        ws.send(pendingMessageRef.current)
+        pendingMessageRef.current = null
+      }
+    })
+
+    ws.addEventListener('message', (event) => {
+      handleSocketMessage(event.data.toString())
+    })
+
+    ws.addEventListener('close', () => {
+      if (wsRef.current === ws) {
+        wsRef.current = null
+      }
+    })
+
+    return ws
+  }
+
+  const sendMessage = (message: object) => {
+    const ws = connectSocket()
+    const payload = JSON.stringify(message)
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(payload)
+      return
+    }
+    pendingMessageRef.current = payload
   }
 
   return (
@@ -101,9 +224,10 @@ function App() {
             setPlayerInfo({
               roomId,
               playerName,
-              playerId: generateUserId(),
+              playerId: '',
               opponentId: '',
             })
+            sendMessage({ type: 'join_room', payload: { roomId, playerName } })
             navigateToMatch(roomId)
           }}
         />
@@ -112,14 +236,13 @@ function App() {
         <CreateRoomPage
           onBack={navigateToEntry}
           onCreate={({ playerName }) => {
-            const roomId = generateRoomId()
             setPlayerInfo({
-              roomId,
+              roomId: '',
               playerName,
-              playerId: generateUserId(),
+              playerId: '',
               opponentId: '',
             })
-            navigateToMatch(roomId)
+            sendMessage({ type: 'create_room', payload: { playerName } })
           }}
         />
       ) : null}
@@ -128,14 +251,9 @@ function App() {
           roomId={route.roomId}
           playerName={playerInfo.playerName}
           playerId={playerInfo.playerId}
+          status={roomState?.status}
+          playersCount={roomState?.players.length}
           onBack={navigateToEntry}
-          onMatched={() => {
-            setPlayerInfo((prev) => ({
-              ...prev,
-              opponentId: prev.opponentId || generateUserId(),
-            }))
-            navigateToBattle()
-          }}
         />
       ) : null}
       {route.name === 'battle' ? (

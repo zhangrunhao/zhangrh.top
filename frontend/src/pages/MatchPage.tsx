@@ -4,12 +4,13 @@ type MatchPageProps = {
   roomId: string
   playerName: string
   playerId: string
+  status?: string
+  playersCount?: number
   onBack: () => void
-  onMatched: () => void
 }
 
-export function MatchPage({ roomId, playerName, playerId, onBack, onMatched }: MatchPageProps) {
-  const hasPlayerInfo = Boolean(roomId && playerName && playerId)
+export function MatchPage({ roomId, playerName, playerId, status, playersCount, onBack }: MatchPageProps) {
+  const hasPlayerInfo = Boolean(roomId && playerName)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   useEffect(() => {
@@ -20,18 +21,13 @@ export function MatchPage({ roomId, playerName, playerId, onBack, onMatched }: M
     const startTime = Date.now()
     const intervalId = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000)
-      setElapsedSeconds(Math.min(elapsed, 3))
+      setElapsedSeconds(elapsed)
     }, 250)
-
-    const timeoutId = window.setTimeout(() => {
-      onMatched()
-    }, 3000)
 
     return () => {
       window.clearInterval(intervalId)
-      window.clearTimeout(timeoutId)
     }
-  }, [onMatched, hasPlayerInfo])
+  }, [hasPlayerInfo])
 
   return (
     <section className="match">
@@ -54,8 +50,20 @@ export function MatchPage({ roomId, playerName, playerId, onBack, onMatched }: M
             </div>
             <div className="match__row">
               <span className="match__label">User ID</span>
-              <span className="match__value">{playerId}</span>
+              <span className="match__value">{playerId || 'pending'}</span>
             </div>
+            {typeof playersCount === 'number' ? (
+              <div className="match__row">
+                <span className="match__label">Players</span>
+                <span className="match__value">{playersCount}/2</span>
+              </div>
+            ) : null}
+            {status ? (
+              <div className="match__row">
+                <span className="match__label">Status</span>
+                <span className="match__value">{status}</span>
+              </div>
+            ) : null}
             <div className="match__row">
               <span className="match__label">Wait Time</span>
               <span className="match__value">{elapsedSeconds}s</span>
