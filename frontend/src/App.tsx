@@ -1,10 +1,13 @@
 import './App.css'
 import { EntryPage } from './pages/EntryPage'
+import { BattlePage } from './pages/BattlePage'
 
 function App() {
+  const activePage: 'entry' | 'battle' = 'battle'
+
   return (
     <div className="app">
-      <EntryPage />
+      {activePage === 'entry' ? <EntryPage /> : <BattlePage />}
     </div>
   )
 }
