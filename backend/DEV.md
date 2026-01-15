@@ -62,6 +62,18 @@
 }
 ```
 
+4) rematch  
+再次对战（仅游戏结束后）。  
+```json
+{
+  "type": "rematch",
+  "payload": {
+    "roomId": "1234",
+    "playerId": "user_xxxxxx"
+  }
+}
+```
+
 #### Server -> Client
 1) connected  
 连接成功提示。  

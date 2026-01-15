@@ -85,10 +85,17 @@ export function BattlePage({
     : null
   const youBeforeHp = youResult ? youResult.hp - youResult.delta : playerHp
   const opponentBeforeHp = opponentResult ? opponentResult.hp - opponentResult.delta : opponentHp
+  const pendingYou = pendingReveal ? (isPlayerOne ? pendingReveal.p1 : pendingReveal.p2) : null
+  const pendingOpponent = pendingReveal ? (isPlayerOne ? pendingReveal.p2 : pendingReveal.p1) : null
+  const isRevealing = Boolean(isRevealOpen && pendingYou && pendingOpponent)
+  const displayPlayerHp = isRevealing && pendingYou ? pendingYou.hp - pendingYou.delta : playerHp
+  const displayOpponentHp = isRevealing && pendingOpponent
+    ? pendingOpponent.hp - pendingOpponent.delta
+    : opponentHp
 
   const clampHp = (value: number) => Math.max(0, Math.min(10, value))
-  const playerHpPercent = `${(clampHp(playerHp) / 10) * 100}%`
-  const opponentHpPercent = `${(clampHp(opponentHp) / 10) * 100}%`
+  const playerHpPercent = `${(clampHp(displayPlayerHp) / 10) * 100}%`
+  const opponentHpPercent = `${(clampHp(displayOpponentHp) / 10) * 100}%`
 
   useEffect(() => {
     setSelectedAction(null)
@@ -135,7 +142,7 @@ export function BattlePage({
           <p className="battle__player-role">You</p>
           <p className="battle__player-name">{displayPlayerName}</p>
           <p className="battle__player-id">ID {displayPlayerId}</p>
-          <p className="battle__hp">HP {playerHp}</p>
+          <p className="battle__hp">HP {displayPlayerHp}</p>
           <p className="battle__hp-bar">
             <span style={{ width: playerHpPercent }} />
           </p>
@@ -144,7 +151,7 @@ export function BattlePage({
           <p className="battle__player-role">Opponent</p>
           <p className="battle__player-name">{displayOpponentName}</p>
           <p className="battle__player-id">ID {displayOpponentId}</p>
-          <p className="battle__hp">HP {opponentHp}</p>
+          <p className="battle__hp">HP {displayOpponentHp}</p>
           <p className="battle__hp-bar">
             <span style={{ width: opponentHpPercent }} />
           </p>

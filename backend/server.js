@@ -132,6 +132,7 @@ wss.on('connection', (ws) => {
         status: 'waiting',
         players: [{ playerId, name: playerName, hp: 10, ws }],
         actions: {},
+        rematchReady: new Set(),
       }
 
       rooms.set(roomId, room)
@@ -282,6 +283,43 @@ wss.on('connection', (ws) => {
       return
     }
 
+    if (type === 'rematch') {
+      const roomId = payload?.roomId
+      const playerId = payload?.playerId
+      if (!roomId || !playerId) {
+        sendError(ws, 'Room ID and player ID are required.')
+        return
+      }
+
+      const room = rooms.get(roomId)
+      if (!room) {
+        sendError(ws, 'Room not found.')
+        return
+      }
+      if (room.status === 'playing') {
+        sendError(ws, 'Rematch is only available after game over.')
+        return
+      }
+
+      room.rematchReady.add(playerId)
+      room.status = 'waiting'
+      broadcastRoomState(room)
+
+      if (room.rematchReady.size < 2) {
+        return
+      }
+
+      room.round = 1
+      room.status = 'playing'
+      room.actions = {}
+      room.players.forEach((player) => {
+        player.hp = 10
+      })
+      room.rematchReady.clear()
+      broadcastRoomState(room)
+      return
+    }
+
     sendError(ws, `Unknown message type: ${type}`)
   })
 
@@ -299,6 +337,9 @@ wss.on('connection', (ws) => {
     room.players = room.players.filter((player) => player.ws !== ws)
     room.actions = {}
     room.status = room.players.length === 2 ? 'playing' : 'waiting'
+    if (room.rematchReady) {
+      room.rematchReady.delete(ws.playerId)
+    }
 
     if (room.players.length === 0) {
       rooms.delete(roomId)

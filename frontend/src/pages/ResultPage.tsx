@@ -4,10 +4,11 @@ type ResultPageProps = {
   playerId: string
   playerSide: 'p1' | 'p2' | null
   gameOver: GameOver | null
+  onRematch: () => void
   onBack: () => void
 }
 
-export function ResultPage({ playerId, playerSide, gameOver, onBack }: ResultPageProps) {
+export function ResultPage({ playerId, playerSide, gameOver, onRematch, onBack }: ResultPageProps) {
   if (!gameOver) {
     return null
   }
@@ -62,8 +63,11 @@ export function ResultPage({ playerId, playerSide, gameOver, onBack }: ResultPag
       </div>
 
       <div className="result__actions">
-        <button className="result__button" onClick={onBack}>
+        <button className="result__button result__button--ghost" onClick={onBack}>
           Back to Lobby
+        </button>
+        <button className="result__button" onClick={onRematch}>
+          Rematch
         </button>
       </div>
     </section>

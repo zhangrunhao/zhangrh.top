@@ -189,6 +189,12 @@ function App() {
         return
       }
       setRoomState(payload)
+      if (payload.status === 'playing' && gameOver) {
+        setGameOver(null)
+      }
+      if (roundResult && payload.round === 1 && roundResult.round > 1) {
+        setRoundResult(null)
+      }
       setPlayerInfo((prev) => {
         if (!prev.playerId) {
           return prev
@@ -287,6 +293,22 @@ function App() {
     })
   }
 
+  const handleRematch = () => {
+    if (!playerInfo.roomId || !playerInfo.playerId) {
+      return
+    }
+    setRoundResult(null)
+    setGameOver(null)
+    sendMessage({
+      type: 'rematch',
+      payload: {
+        roomId: playerInfo.roomId,
+        playerId: playerInfo.playerId,
+      },
+    })
+    navigateToMatch(playerInfo.roomId)
+  }
+
   const playerIndex = roomState?.players.findIndex((player) => player.playerId === playerInfo.playerId)
   const playerSide = playerIndex === 0 ? 'p1' : playerIndex === 1 ? 'p2' : null
 
@@ -347,6 +369,7 @@ function App() {
           playerId={playerInfo.playerId}
           playerSide={playerSide}
           gameOver={gameOver}
+          onRematch={handleRematch}
           onBack={navigateToEntry}
         />
       ) : null}

@@ -605,6 +605,7 @@
 .result__actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
 }
 
 .result__button {
@@ -616,6 +617,13 @@
   background: var(--accent);
   color: #fff;
   box-shadow: 0 12px 20px rgba(255, 107, 61, 0.3);
+}
+
+.result__button--ghost {
+  background: transparent;
+  color: var(--accent-2);
+  border: 1px solid var(--accent-2);
+  box-shadow: none;
 }
 
 @media (max-width: 540px) {
