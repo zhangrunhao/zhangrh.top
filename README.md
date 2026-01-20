@@ -11,3 +11,8 @@
 
 ## Root (optional)
 - Dev: `npm run dev`
+
+## Deploy
+- Ensure SSH key access to the server (no password prompt).
+- Run: `chmod +x deploy.sh`
+- Deploy: `./deploy.sh`
