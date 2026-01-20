@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { Translator } from '../i18n'
-import type { RoomState, RoundResult } from '../types'
+import type { Translator } from '../src/i18n'
+import type { RoomState, RoundResult } from '../src/types'
 
 const actionKeyMap = {
   attack: 'action.attack',

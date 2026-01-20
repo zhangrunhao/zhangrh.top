@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Translator } from '../i18n'
+import type { Translator } from '../src/i18n'
 
 type MatchPageProps = {
   t: Translator

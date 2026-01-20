@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import './App.css'
-import { BattlePage } from './pages/BattlePage'
-import { CreateRoomPage } from './pages/CreateRoomPage'
-import { EntryPage } from './pages/EntryPage'
-import { MatchPage } from './pages/MatchPage'
-import { ResultPage } from './pages/ResultPage'
+import './my-app.css'
+import { BattlePage } from './pages/battle-page'
+import { CreateRoomPage } from './pages/create-room-page'
+import { EntryPage } from './pages/entry-page'
+import { MatchPage } from './pages/match-page'
+import { ResultPage } from './pages/result-page'
 import { createTranslator, getPreferredLanguage, languageStorageKey, type Language } from './i18n'
-import type { GameOver, RoomState, RoundResult } from './types'
+import type { GameOver, RoomState, RoundResult } from './src/types'
 
 type Theme = 'light' | 'dark'
 
@@ -17,8 +17,52 @@ type Route =
   | { name: 'battle' }
   | { name: 'result' }
 
-const resolveRoute = (): Route => {
-  const path = window.location.pathname
+type MyAppProps = {
+  basePath?: string
+}
+
+const normalizeBasePath = (rawBasePath: string): string => {
+  const trimmed = rawBasePath.trim()
+  if (!trimmed || trimmed === '/' || trimmed === './' || trimmed === '.') {
+    return ''
+  }
+
+  let basePath = trimmed
+  if (basePath.endsWith('/')) {
+    basePath = basePath.slice(0, -1)
+  }
+  if (!basePath.startsWith('/')) {
+    basePath = `/${basePath}`
+  }
+  return basePath
+}
+
+const stripBasePath = (pathname: string, basePath: string): string => {
+  if (!basePath) {
+    return pathname
+  }
+  if (pathname === basePath) {
+    return '/'
+  }
+  if (pathname.startsWith(`${basePath}/`)) {
+    const rest = pathname.slice(basePath.length)
+    return rest.length ? rest : '/'
+  }
+  return pathname
+}
+
+const buildPath = (path: string, basePath: string): string => {
+  if (!basePath) {
+    return path
+  }
+  if (path === '/') {
+    return `${basePath}/`
+  }
+  return `${basePath}${path}`
+}
+
+const resolveRoute = (pathname: string, basePath: string): Route => {
+  const path = stripBasePath(pathname, basePath)
   if (path === '/battle') {
     return { name: 'battle' }
   }
@@ -62,10 +106,11 @@ const getPreferredTheme = (): Theme => {
     : 'light'
 }
 
-function App() {
+function MyApp({ basePath: basePathProp = '' }: MyAppProps) {
+  const basePath = normalizeBasePath(basePathProp)
   const [theme, setTheme] = useState<Theme>(() => getPreferredTheme())
   const [language, setLanguage] = useState<Language>(() => getPreferredLanguage())
-  const [route, setRoute] = useState<Route>(resolveRoute)
+  const [route, setRoute] = useState<Route>(() => resolveRoute(window.location.pathname, basePath))
   const [playerInfo, setPlayerInfo] = useState({
     roomId: '',
     playerName: '',
@@ -100,7 +145,7 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      const nextRoute = resolveRoute()
+      const nextRoute = resolveRoute(window.location.pathname, basePath)
       setRoute(nextRoute)
       if (nextRoute.name === 'entry') {
         setPlayerInfo({ roomId: '', playerName: '', playerId: '', opponentId: '' })
@@ -116,7 +161,7 @@ function App() {
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+  }, [basePath])
 
   useEffect(() => {
     if (route.name === 'match' && route.roomId !== playerInfo.roomId) {
@@ -162,40 +207,37 @@ function App() {
     pendingMessageRef.current = null
   }
 
-  const navigateToEntry = () => {
-    if (window.location.pathname !== '/') {
-      window.history.pushState({}, '', '/')
+  const pushPath = (path: string) => {
+    const nextPath = buildPath(path, basePath)
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath)
     }
+  }
+
+  const navigateToEntry = () => {
+    pushPath('/')
     setRoute({ name: 'entry' })
     resetSession()
   }
 
   const navigateToCreate = () => {
-    if (window.location.pathname !== '/create') {
-      window.history.pushState({}, '', '/create')
-    }
+    pushPath('/create')
     setRoute({ name: 'create' })
   }
 
   const navigateToMatch = (roomId: string) => {
     const path = `/match/${roomId}`
-    if (window.location.pathname !== path) {
-      window.history.pushState({}, '', path)
-    }
+    pushPath(path)
     setRoute({ name: 'match', roomId })
   }
 
   const navigateToBattle = () => {
-    if (window.location.pathname !== '/battle') {
-      window.history.pushState({}, '', '/battle')
-    }
+    pushPath('/battle')
     setRoute({ name: 'battle' })
   }
 
   const navigateToResult = () => {
-    if (window.location.pathname !== '/result') {
-      window.history.pushState({}, '', '/result')
-    }
+    pushPath('/result')
     setRoute({ name: 'result' })
   }
 
@@ -449,4 +491,4 @@ function App() {
   )
 }
 
-export default App
+export default MyApp

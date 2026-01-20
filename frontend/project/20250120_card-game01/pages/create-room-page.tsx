@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { MessageKey, Translator } from '../i18n'
+import type { MessageKey, Translator } from '../src/i18n'
 
 type CreateRoomPageProps = {
   t: Translator

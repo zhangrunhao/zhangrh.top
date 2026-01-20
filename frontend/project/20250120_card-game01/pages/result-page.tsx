@@ -1,5 +1,5 @@
-import type { Translator } from '../i18n'
-import type { GameOver } from '../types'
+import type { Translator } from '../src/i18n'
+import type { GameOver } from '../src/types'
 
 type ResultPageProps = {
   t: Translator
