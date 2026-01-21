@@ -23,7 +23,7 @@ export const registerCardGame01 = ({ app, server }) => {
   const BOT_NAME = '机器人'
   const BOT_RESPONSE_DELAY_MS = 3000
 
-  const clampHp = (value) => Math.max(0, Math.min(10, value))
+  const clampHp = (value) => Math.max(0, value)
 
   const generateRoomId = () => {
     let roomId = ''
@@ -91,11 +91,11 @@ export const registerCardGame01 = ({ app, server }) => {
   const DELTA_MATRIX = {
     attack: {
       attack: [-2, -2],
-      defend: [-1, -1],
+      defend: [-1, 0],
       rest: [1, -2],
     },
     defend: {
-      attack: [-1, -1],
+      attack: [0, -1],
       defend: [-1, -1],
       rest: [0, 1],
     },
