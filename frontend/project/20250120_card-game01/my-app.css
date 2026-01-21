@@ -480,6 +480,24 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.95rem;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.battle__status-row--pending {
+  color: var(--muted);
+}
+
+.battle__status-round {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.battle__status-change {
+  font-weight: 600;
+  text-align: right;
 }
 
 .battle__next-round {

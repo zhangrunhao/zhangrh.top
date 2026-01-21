@@ -39,6 +39,7 @@ export function BattlePage({
   const [pendingReveal, setPendingReveal] = useState<RoundResult | null>(null)
   const [revealedResult, setRevealedResult] = useState<RoundResult | null>(null)
   const [isRevealOpen, setIsRevealOpen] = useState(false)
+  const [roundHistory, setRoundHistory] = useState<RoundResult[]>([])
 
   const actionCards = [
     {
@@ -76,23 +77,30 @@ export function BattlePage({
     setIsRevealOpen(true)
   }, [roundResult, revealedResult?.round])
 
+  useEffect(() => {
+    if (!roundResult) {
+      return
+    }
+    setRoundHistory((prev) => {
+      if (prev.some((entry) => entry.round === roundResult.round)) {
+        return prev
+      }
+      return [...prev, roundResult].sort((a, b) => a.round - b.round)
+    })
+  }, [roundResult])
+
+  useEffect(() => {
+    if (roomState?.round === 1 && !roundResult && roundHistory.length > 0) {
+      setRoundHistory([])
+    }
+  }, [roomState?.round, roundResult, roundHistory.length])
+
   const latestResult =
     revealedResult && roomState && revealedResult.round <= roomState.round ? revealedResult : null
   const isPlayerOne = playerSide ? playerSide === 'p1' : true
   const formatAction = (action: 'attack' | 'defend' | 'rest') => t(actionKeyMap[action])
+  const formatDelta = (delta: number) => `${delta > 0 ? '+' : ''}${delta}`
 
-  const youResult = latestResult
-    ? isPlayerOne
-      ? latestResult.p1
-      : latestResult.p2
-    : null
-  const opponentResult = latestResult
-    ? isPlayerOne
-      ? latestResult.p2
-      : latestResult.p1
-    : null
-  const youBeforeHp = youResult ? youResult.hp - youResult.delta : playerHp
-  const opponentBeforeHp = opponentResult ? opponentResult.hp - opponentResult.delta : opponentHp
   const pendingYou = pendingReveal ? (isPlayerOne ? pendingReveal.p1 : pendingReveal.p2) : null
   const pendingOpponent = pendingReveal ? (isPlayerOne ? pendingReveal.p2 : pendingReveal.p1) : null
   const isRevealing = Boolean(isRevealOpen && pendingYou && pendingOpponent)
@@ -215,44 +223,28 @@ export function BattlePage({
               ? `${t('battle.round')} ${latestResult.round} ${t('battle.result')}`
               : t('battle.latest_result')}
           </h3>
-          {latestResult && youResult && opponentResult ? (
-            <>
-              <div className="battle__reveal">
-                <div className="battle__reveal-side">
-                  <p className="battle__reveal-label">{t('battle.you')}</p>
-                  <p className="battle__reveal-name">{displayPlayerName}</p>
-                  <span className="battle__reveal-card">{formatAction(youResult.action)}</span>
-                  <p className="battle__reveal-delta">
-                    ΔHP {youResult.delta > 0 ? '+' : ''}
-                    {youResult.delta}
-                  </p>
-                  <p className="battle__reveal-hp">
-                    {t('battle.hp')} {youBeforeHp} → {youResult.hp}
-                  </p>
-                </div>
-                <div className="battle__reveal-vs">{t('battle.vs')}</div>
-                <div className="battle__reveal-side">
-                  <p className="battle__reveal-label">{t('battle.opponent')}</p>
-                  <p className="battle__reveal-name">{displayOpponentName}</p>
-                  <span className="battle__reveal-card">{formatAction(opponentResult.action)}</span>
-                  <p className="battle__reveal-delta">
-                    ΔHP {opponentResult.delta > 0 ? '+' : ''}
-                    {opponentResult.delta}
-                  </p>
-                  <p className="battle__reveal-hp">
-                    {t('battle.hp')} {opponentBeforeHp} → {opponentResult.hp}
-                  </p>
-                </div>
-              </div>
-              <p className="battle__status-text">
-                {t('battle.net')}: {t('battle.you')} {youResult.delta > 0 ? '+' : ''}
-                {youResult.delta}, {t('battle.opponent')} {opponentResult.delta > 0 ? '+' : ''}
-                {opponentResult.delta}
-              </p>
-            </>
-          ) : (
-            <p className="battle__status-text">{t('battle.results_pending')}</p>
-          )}
+          <div className="battle__status-list">
+            {roundHistory.length === 0 ? (
+              <p className="battle__status-text">{t('battle.results_pending')}</p>
+            ) : (
+              roundHistory.map((result) => {
+                const you = isPlayerOne ? result.p1 : result.p2
+                const opponentEntry = isPlayerOne ? result.p2 : result.p1
+                return (
+                  <div className="battle__status-row" key={result.round}>
+                    <span className="battle__status-round">
+                      {t('battle.round')} {result.round}
+                    </span>
+                    <span className="battle__status-change">
+                      {t('battle.you')} {formatAction(you.action)} {formatDelta(you.delta)} /{' '}
+                      {t('battle.opponent')} {formatAction(opponentEntry.action)}{' '}
+                      {formatDelta(opponentEntry.delta)}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+          </div>
         </div>
       </section>
       {isRevealOpen && pendingReveal ? (
