@@ -167,8 +167,17 @@ button.ghost {
 }
 
 .hp-grid .value {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 36px;
+  font-weight: 700;
+  color: #1b1b1b;
+}
+
+.hp-grid > div {
+  background: #fff7e6;
+  border: 1px solid rgba(122, 106, 85, 0.2);
+  border-radius: 14px;
+  padding: 12px 16px;
+  min-width: 120px;
 }
 
 .panel-header {

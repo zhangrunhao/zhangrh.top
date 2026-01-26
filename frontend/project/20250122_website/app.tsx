@@ -6,6 +6,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import cover from "./assets/Weixin Image_20260126133248_39_37.png";
 
 type Post = {
   id: string;
@@ -61,8 +62,7 @@ const PRODUCTS: Product[] = [
     summary: "即时对战的卡牌策略玩法，支持在线体验与对战。",
     description: "十五张卡牌, 抽5选3, 进行排列",
     url: "https://zhangrh.top/20250126-card_game02/",
-    cover:
-      "https://sns-webpic-qc.xhscdn.com/202601261332/0404d384606757f8431e3fd8a4e3b1c8/spectrum/1040g0k031rnhdsloi0005q4ke9mpvmnpsbkvd6g!nd_dft_wlteh_webp_3",
+    cover: cover,
   },
 ];
 
