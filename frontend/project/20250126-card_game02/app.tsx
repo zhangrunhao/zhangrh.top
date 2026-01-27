@@ -100,10 +100,13 @@ const App = () => {
   const [connectionState, setConnectionState] = useState<'idle' | 'connecting' | 'connected'>('idle')
   const [roomId, setRoomId] = useState('')
   const [playerId, setPlayerId] = useState('')
+  const [playerName, setPlayerName] = useState('')
+  const [joinRoomCode, setJoinRoomCode] = useState('')
   const pendingMessageRef = useRef<string | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const dragIndexRef = useRef<{ source: 'hand' | 'selected'; index: number } | null>(null)
   const startedRef = useRef(false)
+  const sessionActiveRef = useRef(false)
 
   const me = useMemo(() => roomState?.players.find((player) => player.playerId === playerId) ?? null, [
     roomState,
@@ -206,6 +209,10 @@ const App = () => {
     }
   }, [gameOver, modalOpen])
 
+  useEffect(() => {
+    sessionActiveRef.current = Boolean(roomId && playerId)
+  }, [roomId, playerId])
+
   const buildWsUrls = () => {
     const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const wsPath = '/api/20250126-card_game02/ws'
@@ -288,6 +295,7 @@ const App = () => {
     setRoomId('')
     setPlayerId('')
     setRoundLogs([])
+    sessionActiveRef.current = false
   }
 
   const handleSocketMessage = (raw: string) => {
@@ -301,6 +309,9 @@ const App = () => {
     if (message.type === 'error') {
       const payload = message.payload as { message?: string }
       setErrorMessage(payload?.message ?? '服务器错误')
+      if (!sessionActiveRef.current) {
+        startedRef.current = false
+      }
       return
     }
 
@@ -346,7 +357,49 @@ const App = () => {
     startedRef.current = true
     resetSession()
     setErrorMessage(null)
-    sendMessage({ type: 'start_bot' })
+    const trimmedName = playerName.trim()
+    sendMessage({ type: 'start_bot', payload: { playerName: trimmedName || '玩家' } })
+  }
+
+  const handleCreateRoom = () => {
+    if (startedRef.current) {
+      return
+    }
+    const trimmedName = playerName.trim()
+    if (!trimmedName) {
+      setErrorMessage('请先输入昵称')
+      return
+    }
+    startedRef.current = true
+    resetSession()
+    setErrorMessage(null)
+    sendMessage({ type: 'create_room', payload: { playerName: trimmedName } })
+  }
+
+  const handleJoinRoom = () => {
+    if (startedRef.current) {
+      return
+    }
+    const trimmedName = playerName.trim()
+    if (!trimmedName) {
+      setErrorMessage('请先输入昵称')
+      return
+    }
+    const normalizedRoomId = joinRoomCode.trim()
+    if (!/^\d{4}$/.test(normalizedRoomId)) {
+      setErrorMessage('房间号需要 4 位数字')
+      return
+    }
+    startedRef.current = true
+    resetSession()
+    setErrorMessage(null)
+    sendMessage({
+      type: 'join_room',
+      payload: {
+        roomId: normalizedRoomId,
+        playerName: trimmedName,
+      },
+    })
   }
 
   const handleSubmit = () => {
@@ -529,6 +582,7 @@ const App = () => {
     !me?.submitted &&
     !modalOpen &&
     selectedCount === roundHand.requiredPickCount
+  const displayRoomId = roomState?.roomId ?? roomId
 
   return (
     <div className="app">
@@ -587,11 +641,40 @@ const App = () => {
         <section className="panel entry">
           <div>
             <h2>准备开始</h2>
-            <p>点击开始游戏后，将建立长链接并进入战斗页面。</p>
+            <p>先输入昵称，然后创建房间或输入房间号加入。</p>
           </div>
           <div className="entry-form">
-            <button className="primary" onClick={handleStartBotMatch}>
-              开始游戏
+            <label>
+              昵称
+              <input
+                value={playerName}
+                onChange={(event) => setPlayerName(event.target.value)}
+                placeholder="例如：小张"
+                maxLength={20}
+              />
+            </label>
+            <div className="actions">
+              <button className="primary" onClick={handleCreateRoom}>
+                创建房间
+              </button>
+              <button className="ghost" onClick={handleStartBotMatch}>
+                人机对战
+              </button>
+            </div>
+            <label>
+              房间号（4 位数字）
+              <input
+                value={joinRoomCode}
+                onChange={(event) => {
+                  const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 4)
+                  setJoinRoomCode(digitsOnly)
+                }}
+                inputMode="numeric"
+                placeholder="例如：1234"
+              />
+            </label>
+            <button className="primary" onClick={handleJoinRoom}>
+              加入房间
             </button>
             {errorMessage && <p className="error">{errorMessage}</p>}
           </div>
@@ -606,6 +689,10 @@ const App = () => {
               <p>
                 当前回合 <strong>{roomState?.round ?? 1}</strong> / 10
               </p>
+              <p className="helper">房间号：{displayRoomId || '—'}</p>
+              {roomState?.status === 'waiting' && (
+                <p className="helper">等待另一位玩家加入…</p>
+              )}
             </div>
             <div className="hp-grid">
               <div>
