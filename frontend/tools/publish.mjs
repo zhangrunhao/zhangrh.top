@@ -22,7 +22,7 @@ const usage = () => {
   const available = projects.length ? projects.join(', ') : 'none'
   console.log('Usage: npm run publish <project-name>')
   console.log(`Available projects: ${available}`)
-  console.log('Rsync target: root@101.200.185.29:/var/www/card-game-site.new/')
+  console.log('Rsync target: root@101.200.185.29:/var/www/card-game-site.new/<project>/')
 }
 
 const parseProjectFromNpm = (command) => {
@@ -103,8 +103,6 @@ const run = (commandName, args, options) => {
 
 run('git', ['pull'], { cwd: repoRoot })
 run(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build', '--', project], { cwd })
-run(
-  'rsync',
-  ['-avz', '--delete', 'dist/', `${rsyncUser}@${rsyncHost}:${rsyncDest}`],
-  { cwd },
-)
+const localDist = `dist/${project}/`
+const remoteDist = `${rsyncUser}@${rsyncHost}:${rsyncDest}${project}/`
+run('rsync', ['-avz', '--delete', localDist, remoteDist], { cwd })

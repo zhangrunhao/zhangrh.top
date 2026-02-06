@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, mergeConfig } from 'vite'
@@ -16,19 +15,6 @@ const sharedConfig = defineConfig({
   },
 })
 
-const toAbsoluteEntry = (projectRoot: string, entry: Record<string, string>) =>
-  Object.fromEntries(
-    Object.entries(entry).map(([name, entryPath]) => [name, path.resolve(projectRoot, entryPath)]),
-  )
-
-const scanHtmlEntries = (projectRoot: string) =>
-  Object.fromEntries(
-    fs
-      .readdirSync(projectRoot)
-      .filter((name) => name.endsWith('.html'))
-      .map((name) => [path.parse(name).name, path.resolve(projectRoot, name)]),
-  )
-
 export const createProjectConfig = ({
   projectRoot,
   entry,
@@ -37,41 +23,28 @@ export const createProjectConfig = ({
   entry?: Record<string, string>
 }) => {
   const projectName = path.basename(projectRoot)
-  const htmlInputs = entry ? toAbsoluteEntry(projectRoot, entry) : scanHtmlEntries(projectRoot)
-  const isMultiPage = Object.keys(htmlInputs).length > 1
+  const htmlInputs = entry
+    ? Object.fromEntries(
+        Object.entries(entry).map(([name, entryPath]) => [name, path.resolve(projectRoot, entryPath)]),
+      )
+    : { index: path.resolve(projectRoot, 'index.html') }
   const distRoot = path.resolve(projectRoot, '../../dist', projectName)
 
-  if (Object.keys(htmlInputs).length === 0) {
-    throw new Error(`No HTML entry files found in ${projectRoot}.`)
+  if (!htmlInputs.index) {
+    throw new Error(`Missing index.html entry for ${projectRoot}.`)
   }
 
   return defineConfig(({ command }) =>
     mergeConfig(sharedConfig, {
       root: projectRoot,
       base: command === 'build' ? `/${projectName}/` : '/',
-      appType: isMultiPage ? 'mpa' : 'spa',
-      plugins: [
-        {
-          name: 'move-html-to-subdir',
-          apply: 'build',
-          generateBundle(_options, bundle) {
-            for (const [fileName, file] of Object.entries(bundle)) {
-              if (file.type !== 'asset' || !fileName.endsWith('.html')) {
-                continue
-              }
-              delete bundle[fileName]
-              file.fileName = path.posix.join('html', fileName)
-              bundle[file.fileName] = file
-            }
-          },
-        },
-      ],
+      appType: 'spa',
       build: {
         outDir: distRoot,
         assetsDir: 'static',
         emptyOutDir: true,
         rollupOptions: {
-          input: htmlInputs,
+          input: { index: htmlInputs.index },
         },
       },
     }),
