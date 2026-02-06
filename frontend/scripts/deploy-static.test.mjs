@@ -1,6 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cacheControlForKey, joinCosKey, toPosix, CONFIG } from './deploy-static.mjs'
+import {
+  cacheControlForKey,
+  joinCosKey,
+  toPosix,
+  CONFIG,
+  PROJECT_NAME,
+  pickLatestBuildDate,
+} from './deploy-static.mjs'
 
 test('cacheControlForKey returns no-cache for html', () => {
   assert.equal(cacheControlForKey('index.html'), 'no-cache')
@@ -24,9 +31,23 @@ test('joinCosKey prefixes and normalizes', () => {
 })
 
 test('CONFIG uses hardcoded defaults', () => {
-  assert.equal(CONFIG.COS_BUCKET, 'your-bucket')
-  assert.equal(CONFIG.COS_REGION, 'ap-guangzhou')
-  assert.equal(CONFIG.COS_PREFIX, 'static/site')
-  assert.equal(CONFIG.BUILD_DIR, 'dist/20250122_website')
-  assert.equal(CONFIG.CDN_BASE_URL, 'https://cdn.example.com')
+  assert.equal(PROJECT_NAME, '20250122_website')
+  assert.equal(CONFIG.COS_BUCKET, 'zhangrh-1307650972')
+  assert.equal(CONFIG.COS_REGION, 'ap-beijing')
+  assert.equal(
+    CONFIG.CDN_BASE_URL,
+    'https://zhangrh-1307650972.cos.ap-beijing.myqcloud.com',
+  )
+})
+
+test('pickLatestBuildDate picks max yyyymmdd directory name', () => {
+  assert.equal(pickLatestBuildDate(['20260206', '20260207']), '20260207')
+})
+
+test('pickLatestBuildDate ignores non-date directories', () => {
+  assert.equal(pickLatestBuildDate(['static', 'abc', '20260207']), '20260207')
+})
+
+test('pickLatestBuildDate returns null when no date directory exists', () => {
+  assert.equal(pickLatestBuildDate(['static', 'html']), null)
 })

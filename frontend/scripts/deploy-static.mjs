@@ -6,15 +6,23 @@ import mime from 'mime-types'
 
 const { COS_SECRET_ID, COS_SECRET_KEY } = process.env
 
+export const PROJECT_NAME = '20250122_website'
+const DIST_ROOT = 'dist'
+const BUILD_DATE_PATTERN = /^\d{8}$/
+
 export const CONFIG = {
-  COS_BUCKET: 'your-bucket',
-  COS_REGION: 'ap-guangzhou',
-  COS_PREFIX: 'static/site',
-  BUILD_DIR: 'dist/20250122_website',
-  CDN_BASE_URL: 'https://cdn.example.com',
+  COS_BUCKET: 'zhangrh-1307650972',
+  COS_REGION: 'ap-beijing',
+  CDN_BASE_URL: 'https://zhangrh-1307650972.cos.ap-beijing.myqcloud.com',
 }
 
-const { COS_BUCKET, COS_REGION, COS_PREFIX, BUILD_DIR, CDN_BASE_URL } = CONFIG
+const { COS_BUCKET, COS_REGION, CDN_BASE_URL } = CONFIG
+
+export const pickLatestBuildDate = (directoryNames) =>
+  directoryNames
+    .filter((name) => BUILD_DATE_PATTERN.test(name))
+    .sort()
+    .at(-1) ?? null
 
 export const toPosix = (value) => value.split(path.sep).join('/').replace(/\\/g, '/')
 
@@ -77,6 +85,25 @@ export async function main() {
   must(COS_BUCKET, 'COS_BUCKET')
   must(COS_REGION, 'COS_REGION')
 
+  const projectDistDir = path.resolve(process.cwd(), DIST_ROOT, PROJECT_NAME)
+  if (!fs.existsSync(projectDistDir)) {
+    console.error(`Project dist dir not found: ${projectDistDir}`)
+    process.exit(1)
+  }
+
+  const buildDate = pickLatestBuildDate(
+    fs
+      .readdirSync(projectDistDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name),
+  )
+  if (!buildDate) {
+    console.error(`No YYYYMMDD build directory found in: ${projectDistDir}`)
+    process.exit(1)
+  }
+
+  const BUILD_DIR = path.join(DIST_ROOT, PROJECT_NAME, buildDate)
+  const COS_PREFIX = `${PROJECT_NAME}/${buildDate}`
   const absBuild = path.resolve(process.cwd(), BUILD_DIR)
   if (!fs.existsSync(absBuild)) {
     console.error(`BUILD_DIR not found: ${absBuild}`)

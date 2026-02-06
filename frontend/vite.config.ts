@@ -3,6 +3,15 @@ import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, mergeConfig } from 'vite'
 
+const CDN_BASE_URL = 'https://zhangrh-1307650972.cos.ap-beijing.myqcloud.com'
+
+export const formatBuildDate = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}${month}${day}`
+}
+
 const sharedConfig = defineConfig({
   plugins: [react()],
   server: {
@@ -37,9 +46,11 @@ export const createProjectConfig = ({
   entry?: Record<string, string>
 }) => {
   const projectName = path.basename(projectRoot)
+  const buildDate = formatBuildDate()
   const htmlInputs = entry ? toAbsoluteEntry(projectRoot, entry) : scanHtmlEntries(projectRoot)
   const isMultiPage = Object.keys(htmlInputs).length > 1
-  const distRoot = path.resolve(projectRoot, '../../dist', projectName)
+  const distRoot = path.resolve(projectRoot, '../../dist', projectName, buildDate)
+  const baseUrl = `${CDN_BASE_URL.replace(/\/+$/, '')}/${projectName}/${buildDate}/`
 
   if (Object.keys(htmlInputs).length === 0) {
     throw new Error(`No HTML entry files found in ${projectRoot}.`)
@@ -48,7 +59,7 @@ export const createProjectConfig = ({
   return defineConfig(({ command }) =>
     mergeConfig(sharedConfig, {
       root: projectRoot,
-      base: command === 'build' ? `/${projectName}/` : '/',
+      base: command === 'build' ? baseUrl : '/',
       appType: isMultiPage ? 'mpa' : 'spa',
       plugins: [
         {
