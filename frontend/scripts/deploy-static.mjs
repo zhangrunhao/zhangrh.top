@@ -6,9 +6,10 @@ import mime from 'mime-types'
 
 const { COS_SECRET_ID, COS_SECRET_KEY } = process.env
 
-export const PROJECT_NAME = '20250122_website'
-const DIST_ROOT = 'dist'
-const BUILD_DATE_PATTERN = /^\d{8}$/
+export const DEFAULT_PROJECT_NAME = '20250122_website'
+export const staticBuildDirForProject = (projectName) =>
+  path.join('dist', projectName, 'static')
+export const cosPrefixForProject = (projectName) => `${projectName}/static`
 
 export const CONFIG = {
   COS_BUCKET: 'zhangrh-1307650972',
@@ -17,12 +18,6 @@ export const CONFIG = {
 }
 
 const { COS_BUCKET, COS_REGION, CDN_BASE_URL } = CONFIG
-
-export const pickLatestBuildDate = (directoryNames) =>
-  directoryNames
-    .filter((name) => BUILD_DATE_PATTERN.test(name))
-    .sort()
-    .at(-1) ?? null
 
 export const toPosix = (value) => value.split(path.sep).join('/').replace(/\\/g, '/')
 
@@ -37,6 +32,8 @@ export const cacheControlForKey = (key) => {
   }
   return 'public, max-age=31536000, immutable'
 }
+
+export const contentDispositionForKey = () => 'inline'
 
 const must = (value, name) => {
   if (!value) {
@@ -74,6 +71,7 @@ const putObject = (cos, { key, filePath }) =>
         Body: fs.createReadStream(filePath),
         ContentType: contentType,
         CacheControl: cacheControlForKey(key),
+        ContentDisposition: contentDispositionForKey(key),
       },
       (err, data) => (err ? reject(err) : resolve(data)),
     )
@@ -85,25 +83,9 @@ export async function main() {
   must(COS_BUCKET, 'COS_BUCKET')
   must(COS_REGION, 'COS_REGION')
 
-  const projectDistDir = path.resolve(process.cwd(), DIST_ROOT, PROJECT_NAME)
-  if (!fs.existsSync(projectDistDir)) {
-    console.error(`Project dist dir not found: ${projectDistDir}`)
-    process.exit(1)
-  }
-
-  const buildDate = pickLatestBuildDate(
-    fs
-      .readdirSync(projectDistDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name),
-  )
-  if (!buildDate) {
-    console.error(`No YYYYMMDD build directory found in: ${projectDistDir}`)
-    process.exit(1)
-  }
-
-  const BUILD_DIR = path.join(DIST_ROOT, PROJECT_NAME, buildDate)
-  const COS_PREFIX = `${PROJECT_NAME}/${buildDate}`
+  const projectName = process.env.DEPLOY_PROJECT || DEFAULT_PROJECT_NAME
+  const BUILD_DIR = staticBuildDirForProject(projectName)
+  const COS_PREFIX = cosPrefixForProject(projectName)
   const absBuild = path.resolve(process.cwd(), BUILD_DIR)
   if (!fs.existsSync(absBuild)) {
     console.error(`BUILD_DIR not found: ${absBuild}`)
@@ -138,8 +120,8 @@ export async function main() {
     COS_PREFIX.endsWith('/') || COS_PREFIX.length === 0
       ? COS_PREFIX
       : `${COS_PREFIX}/`
-  const entry = `${base}/${prefix}index.html`
-  console.log(`\nENTRY_URL=${entry}`)
+  const staticBase = `${base}/${prefix}`
+  console.log(`\nSTATIC_BASE_URL=${staticBase}`)
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -4,13 +4,6 @@ import { defineConfig, mergeConfig } from 'vite'
 
 const CDN_BASE_URL = 'https://zhangrh-1307650972.cos.ap-beijing.myqcloud.com'
 
-export const formatBuildDate = (date = new Date()) => {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  return `${year}${month}${day}`
-}
-
 const sharedConfig = defineConfig({
   plugins: [react()],
   server: {
@@ -37,9 +30,8 @@ export const createProjectConfig = ({
         Object.entries(entry).map(([name, entryPath]) => [name, path.resolve(projectRoot, entryPath)]),
       )
     : { index: path.resolve(projectRoot, 'index.html') }
-  const buildDate = formatBuildDate()
-  const distRoot = path.resolve(projectRoot, '../../dist', projectName, buildDate)
-  const baseUrl = `${CDN_BASE_URL.replace(/\/+$/, '')}/${projectName}/${buildDate}/`
+  const distRoot = path.resolve(projectRoot, '../../dist', projectName)
+  const baseUrl = `${CDN_BASE_URL.replace(/\/+$/, '')}/${projectName}/`
 
   if (!htmlInputs.index) {
     throw new Error(`Missing index.html entry for ${projectRoot}.`)

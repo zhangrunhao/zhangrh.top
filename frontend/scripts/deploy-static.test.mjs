@@ -2,11 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   cacheControlForKey,
+  cosPrefixForProject,
+  contentDispositionForKey,
   joinCosKey,
+  staticBuildDirForProject,
   toPosix,
   CONFIG,
-  PROJECT_NAME,
-  pickLatestBuildDate,
+  DEFAULT_PROJECT_NAME,
 } from './deploy-static.mjs'
 
 test('cacheControlForKey returns no-cache for html', () => {
@@ -21,6 +23,11 @@ test('cacheControlForKey returns long cache for non-html', () => {
   )
 })
 
+test('contentDispositionForKey returns inline', () => {
+  assert.equal(contentDispositionForKey('static/app.123.js'), 'inline')
+  assert.equal(contentDispositionForKey('index.html'), 'inline')
+})
+
 test('toPosix normalizes separators', () => {
   assert.equal(toPosix('a\\b\\c'), 'a/b/c')
 })
@@ -31,7 +38,7 @@ test('joinCosKey prefixes and normalizes', () => {
 })
 
 test('CONFIG uses hardcoded defaults', () => {
-  assert.equal(PROJECT_NAME, '20250122_website')
+  assert.equal(DEFAULT_PROJECT_NAME, '20250122_website')
   assert.equal(CONFIG.COS_BUCKET, 'zhangrh-1307650972')
   assert.equal(CONFIG.COS_REGION, 'ap-beijing')
   assert.equal(
@@ -40,14 +47,13 @@ test('CONFIG uses hardcoded defaults', () => {
   )
 })
 
-test('pickLatestBuildDate picks max yyyymmdd directory name', () => {
-  assert.equal(pickLatestBuildDate(['20260206', '20260207']), '20260207')
+test('staticBuildDirForProject points to dist/<project>/static', () => {
+  assert.equal(
+    staticBuildDirForProject('20250122_website'),
+    'dist/20250122_website/static',
+  )
 })
 
-test('pickLatestBuildDate ignores non-date directories', () => {
-  assert.equal(pickLatestBuildDate(['static', 'abc', '20260207']), '20260207')
-})
-
-test('pickLatestBuildDate returns null when no date directory exists', () => {
-  assert.equal(pickLatestBuildDate(['static', 'html']), null)
+test('cosPrefixForProject points to <project>/static', () => {
+  assert.equal(cosPrefixForProject('20250122_website'), '20250122_website/static')
 })
