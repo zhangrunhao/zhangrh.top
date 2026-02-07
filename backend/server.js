@@ -1,8 +1,6 @@
 import http from 'http'
 import express from 'express'
 import cors from 'cors'
-import { registerCardGame01 } from './projects/20250120_card-game01.js'
-import { registerCardGame02 } from './projects/20250126-card_game02.js'
 import { registerCardGame } from './projects/cardgame.js'
 
 const PORT = Number(process.env.PORT) || 3001
@@ -15,8 +13,6 @@ app.get('/health', (_req, res) => {
 })
 
 const server = http.createServer(app)
-registerCardGame01({ app, server })
-registerCardGame02({ app, server })
 registerCardGame({ app, server })
 
 server.listen(PORT, () => {

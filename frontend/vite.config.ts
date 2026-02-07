@@ -2,8 +2,6 @@ import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, mergeConfig } from 'vite'
 
-const CDN_BASE_URL = 'https://zhangrh-1307650972.cos.ap-beijing.myqcloud.com'
-
 const sharedConfig = defineConfig({
   plugins: [react()],
   server: {
@@ -31,7 +29,7 @@ export const createProjectConfig = ({
       )
     : { index: path.resolve(projectRoot, 'index.html') }
   const distRoot = path.resolve(projectRoot, '../../dist', projectName)
-  const baseUrl = `${CDN_BASE_URL.replace(/\/+$/, '')}/${projectName}/`
+  const basePath = `/${projectName}/`
 
   if (!htmlInputs.index) {
     throw new Error(`Missing index.html entry for ${projectRoot}.`)
@@ -40,7 +38,7 @@ export const createProjectConfig = ({
   return defineConfig(({ command }) =>
     mergeConfig(sharedConfig, {
       root: projectRoot,
-      base: command === 'build' ? baseUrl : '/',
+      base: command === 'build' ? basePath : '/',
       appType: 'spa',
       build: {
         outDir: distRoot,

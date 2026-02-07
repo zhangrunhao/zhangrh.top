@@ -22,8 +22,8 @@ const usage = () => {
   const available = projects.length ? projects.join(', ') : 'none'
   console.log('Usage: npm run publish <project-name>')
   console.log(`Available projects: ${available}`)
-  console.log('Publish flow: build -> deploy static to COS -> rsync HTML to server')
-  console.log('Rsync target: root@101.200.185.29:/var/www/card-game-site.new/<project>/')
+  console.log('Publish flow: build -> rsync dist/<project>/ to server')
+  console.log('Rsync target: root@101.200.185.29:/var/www/zhangrh.shop/<project>/')
 }
 
 const parseProjectFromNpm = (command) => {
@@ -89,10 +89,6 @@ if (!project) {
   process.exit(1)
 }
 
-const rsyncUser = 'root'
-const rsyncHost = '101.200.185.29'
-const rsyncDest = '/var/www/zhangrh.shop'
-
 const repoRoot = findRepoRoot(cwd) ?? path.resolve(cwd, '..')
 
 const run = (commandName, args, options) => {
@@ -111,20 +107,4 @@ run(
     cwd,
     env: { ...process.env, DEPLOY_PROJECT: project },
   },
-)
-const localDist = `dist/${project}/`
-const remoteDist = `${rsyncUser}@${rsyncHost}:${rsyncDest}${project}/`
-run(
-  'rsync',
-  [
-    '-avz',
-    '--delete',
-    '--delete-excluded',
-    '--include=*/',
-    '--include=*.html',
-    '--exclude=*',
-    localDist,
-    remoteDist,
-  ],
-  { cwd },
 )

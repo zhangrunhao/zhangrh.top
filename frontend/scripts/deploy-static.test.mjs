@@ -1,59 +1,38 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  cacheControlForKey,
-  cosPrefixForProject,
-  contentDispositionForKey,
-  joinCosKey,
-  staticBuildDirForProject,
-  toPosix,
-  CONFIG,
   DEFAULT_PROJECT_NAME,
+  DEFAULT_RSYNC_DEST,
+  DEFAULT_RSYNC_HOST,
+  DEFAULT_RSYNC_USER,
+  distDirForProject,
+  ensureTrailingSlash,
+  remoteDirForProject,
+  shellEscape,
 } from './deploy-static.mjs'
 
-test('cacheControlForKey returns no-cache for html', () => {
-  assert.equal(cacheControlForKey('index.html'), 'no-cache')
-  assert.equal(cacheControlForKey('foo/bar/page.html'), 'no-cache')
-})
-
-test('cacheControlForKey returns long cache for non-html', () => {
-  assert.equal(
-    cacheControlForKey('static/app.123.js'),
-    'public, max-age=31536000, immutable',
-  )
-})
-
-test('contentDispositionForKey returns inline', () => {
-  assert.equal(contentDispositionForKey('static/app.123.js'), 'inline')
-  assert.equal(contentDispositionForKey('index.html'), 'inline')
-})
-
-test('toPosix normalizes separators', () => {
-  assert.equal(toPosix('a\\b\\c'), 'a/b/c')
-})
-
-test('joinCosKey prefixes and normalizes', () => {
-  assert.equal(joinCosKey('static/site/', 'a/b.js'), 'static/site/a/b.js')
-  assert.equal(joinCosKey('static/site', 'a/b.js'), 'static/site/a/b.js')
-})
-
-test('CONFIG uses hardcoded defaults', () => {
+test('defaults use server rsync target', () => {
   assert.equal(DEFAULT_PROJECT_NAME, 'hub')
-  assert.equal(CONFIG.COS_BUCKET, 'zhangrh-1307650972')
-  assert.equal(CONFIG.COS_REGION, 'ap-beijing')
-  assert.equal(
-    CONFIG.CDN_BASE_URL,
-    'https://zhangrh-1307650972.cos.ap-beijing.myqcloud.com',
-  )
+  assert.equal(DEFAULT_RSYNC_USER, 'root')
+  assert.equal(DEFAULT_RSYNC_HOST, '101.200.185.29')
+  assert.equal(DEFAULT_RSYNC_DEST, '/var/www/zhangrh.shop')
 })
 
-test('staticBuildDirForProject points to dist/<project>/static', () => {
-  assert.equal(
-    staticBuildDirForProject('hub'),
-    'dist/hub/static',
-  )
+test('distDirForProject points to dist/<project>', () => {
+  assert.equal(distDirForProject('hub'), 'dist/hub')
 })
 
-test('cosPrefixForProject points to <project>/static', () => {
-  assert.equal(cosPrefixForProject('hub'), 'hub/static')
+test('remoteDirForProject joins base and project', () => {
+  assert.equal(remoteDirForProject('/var/www/zhangrh.shop', 'hub'), '/var/www/zhangrh.shop/hub')
+  assert.equal(remoteDirForProject('/var/www/zhangrh.shop/', 'hub'), '/var/www/zhangrh.shop/hub')
+})
+
+test('ensureTrailingSlash appends once', () => {
+  assert.equal(ensureTrailingSlash('/var/www/zhangrh.shop/hub'), '/var/www/zhangrh.shop/hub/')
+  assert.equal(ensureTrailingSlash('/var/www/zhangrh.shop/hub/'), '/var/www/zhangrh.shop/hub/')
+})
+
+test('shellEscape quotes safely', () => {
+  assert.equal(shellEscape("/var/www/zhangrh.shop/hub"), "'/var/www/zhangrh.shop/hub'")
+  assert.equal(shellEscape("abc'def"), "'abc'\\''def'")
 })

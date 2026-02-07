@@ -1,132 +1,98 @@
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import COS from 'cos-nodejs-sdk-v5'
-import mime from 'mime-types'
-
-const { COS_SECRET_ID, COS_SECRET_KEY } = process.env
 
 export const DEFAULT_PROJECT_NAME = 'hub'
-export const staticBuildDirForProject = (projectName) =>
-  path.join('dist', projectName, 'static')
-export const cosPrefixForProject = (projectName) => `${projectName}/static`
+export const DEFAULT_RSYNC_USER = 'root'
+export const DEFAULT_RSYNC_HOST = '101.200.185.29'
+export const DEFAULT_RSYNC_DEST = '/var/www/zhangrh.shop'
 
-export const CONFIG = {
-  COS_BUCKET: 'zhangrh-1307650972',
-  COS_REGION: 'ap-beijing',
-  CDN_BASE_URL: 'https://zhangrh-1307650972.cos.ap-beijing.myqcloud.com',
-}
+export const distDirForProject = (projectName) => path.join('dist', projectName)
 
-const { COS_BUCKET, COS_REGION, CDN_BASE_URL } = CONFIG
+export const remoteDirForProject = (baseDir, projectName) =>
+  `${baseDir.replace(/\/+$/, '')}/${projectName}`
 
-export const toPosix = (value) => value.split(path.sep).join('/').replace(/\\/g, '/')
+export const ensureTrailingSlash = (value) => (value.endsWith('/') ? value : `${value}/`)
 
-export const joinCosKey = (prefix, rel) => {
-  const normalizedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`
-  return `${normalizedPrefix}${toPosix(rel)}`.replace(/^\/+/, '')
-}
+export const shellEscape = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`
 
-export const cacheControlForKey = (key) => {
-  if (key.endsWith('index.html') || key.endsWith('.html')) {
-    return 'no-cache'
-  }
-  return 'public, max-age=31536000, immutable'
-}
-
-export const contentDispositionForKey = () => 'inline'
-
-const must = (value, name) => {
-  if (!value) {
-    console.error(`Missing env: ${name}`)
-    process.exit(1)
-  }
-}
-
-const walkFiles = (dir) => {
-  const out = []
-  const stack = [dir]
-  while (stack.length) {
-    const current = stack.pop()
-    const items = fs.readdirSync(current, { withFileTypes: true })
-    for (const item of items) {
-      const nextPath = path.join(current, item.name)
-      if (item.isDirectory()) {
-        stack.push(nextPath)
-      } else if (item.isFile()) {
-        out.push(nextPath)
-      }
+const parseArgs = (args) => {
+  const options = { project: null, user: null, host: null, dest: null }
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i]
+    if (arg === '--user') {
+      options.user = args[i + 1] ?? null
+      i += 1
+      continue
+    }
+    if (arg === '--host') {
+      options.host = args[i + 1] ?? null
+      i += 1
+      continue
+    }
+    if (arg === '--dest') {
+      options.dest = args[i + 1] ?? null
+      i += 1
+      continue
+    }
+    if (!options.project && !arg.startsWith('-')) {
+      options.project = arg
     }
   }
-  return out
+  return options
 }
 
-const putObject = (cos, { key, filePath }) =>
-  new Promise((resolve, reject) => {
-    const contentType = mime.lookup(filePath) || 'application/octet-stream'
-    cos.putObject(
-      {
-        Bucket: COS_BUCKET,
-        Region: COS_REGION,
-        Key: key,
-        Body: fs.createReadStream(filePath),
-        ContentType: contentType,
-        CacheControl: cacheControlForKey(key),
-        ContentDisposition: contentDispositionForKey(key),
-      },
-      (err, data) => (err ? reject(err) : resolve(data)),
-    )
-  })
+const run = (command, args, options = {}) => {
+  const result = spawnSync(command, args, { stdio: 'inherit', ...options })
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1)
+  }
+}
+
+const usage = () => {
+  console.log('Usage: npm run deploy [project-name] [-- --host <host> --dest <path> --user <user>]')
+  console.log(
+    `Default target: ${DEFAULT_RSYNC_USER}@${DEFAULT_RSYNC_HOST}:${DEFAULT_RSYNC_DEST}/<project>/`,
+  )
+}
 
 export async function main() {
-  must(COS_SECRET_ID, 'COS_SECRET_ID')
-  must(COS_SECRET_KEY, 'COS_SECRET_KEY')
-  must(COS_BUCKET, 'COS_BUCKET')
-  must(COS_REGION, 'COS_REGION')
-
-  const projectName = process.env.DEPLOY_PROJECT || DEFAULT_PROJECT_NAME
-  const BUILD_DIR = staticBuildDirForProject(projectName)
-  const COS_PREFIX = cosPrefixForProject(projectName)
-  const absBuild = path.resolve(process.cwd(), BUILD_DIR)
-  if (!fs.existsSync(absBuild)) {
-    console.error(`BUILD_DIR not found: ${absBuild}`)
+  const cli = parseArgs(process.argv.slice(2))
+  const projectName = cli.project || process.env.DEPLOY_PROJECT || DEFAULT_PROJECT_NAME
+  if (!projectName) {
+    usage()
     process.exit(1)
   }
 
-  const files = walkFiles(absBuild)
-  if (!files.length) {
-    console.error(`No files found in: ${absBuild}`)
+  const rsyncUser = cli.user || process.env.DEPLOY_RSYNC_USER || DEFAULT_RSYNC_USER
+  const rsyncHost = cli.host || process.env.DEPLOY_RSYNC_HOST || DEFAULT_RSYNC_HOST
+  const rsyncDest = cli.dest || process.env.DEPLOY_RSYNC_DEST || DEFAULT_RSYNC_DEST
+
+  const localDist = path.resolve(process.cwd(), distDirForProject(projectName))
+  if (!fs.existsSync(localDist)) {
+    console.error(`Build output not found: ${localDist}`)
+    console.error(`Run: npm run build -- ${projectName}`)
     process.exit(1)
   }
 
-  const cos = new COS({
-    SecretId: COS_SECRET_ID,
-    SecretKey: COS_SECRET_KEY,
-  })
+  const remote = `${rsyncUser}@${rsyncHost}`
+  const remoteProjectDir = remoteDirForProject(rsyncDest, projectName)
 
-  console.log(
-    `Uploading ${files.length} files from ${BUILD_DIR} to cos://${COS_BUCKET}/${COS_PREFIX}`,
-  )
-  for (const filePath of files) {
-    const rel = path.relative(absBuild, filePath)
-    const key = joinCosKey(COS_PREFIX, rel)
-    await putObject(cos, { key, filePath })
-    console.log(`OK  ${key}`)
-  }
+  run('ssh', [remote, `mkdir -p ${shellEscape(remoteProjectDir)}`])
+  run('rsync', [
+    '-avz',
+    '--delete',
+    ensureTrailingSlash(localDist),
+    `${remote}:${ensureTrailingSlash(remoteProjectDir)}`,
+  ])
 
-  const base = CDN_BASE_URL
-    ? CDN_BASE_URL.replace(/\/+$/, '')
-    : `https://${COS_BUCKET}.cos.${COS_REGION}.myqcloud.com`
-  const prefix =
-    COS_PREFIX.endsWith('/') || COS_PREFIX.length === 0
-      ? COS_PREFIX
-      : `${COS_PREFIX}/`
-  const staticBase = `${base}/${prefix}`
-  console.log(`\nSTATIC_BASE_URL=${staticBase}`)
+  console.log(`Deployed: ${localDist} -> ${remote}:${ensureTrailingSlash(remoteProjectDir)}`)
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
-    console.error('Upload failed:', error?.message || error)
+    console.error('Deploy failed:', error?.message || error)
     process.exit(1)
   })
 }
